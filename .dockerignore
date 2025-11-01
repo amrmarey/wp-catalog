@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+.env.example
+*.md
+wp_data
+db_data
+.DS_Store
+Thumbs.db

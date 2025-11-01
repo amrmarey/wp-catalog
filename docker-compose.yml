@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:6.4-apache
+    container_name: wp_catalog
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wpuser}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wp_catalog}
+    ports:
+      - "${WP_PORT:-8080}:80"
+    volumes:
+      - wp_data:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/wp-admin/install.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - wp_network
+
+  db:
+    image: mysql:8.0
+    container_name: wp_catalog_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${WP_DB_NAME:-wp_catalog}
+      MYSQL_USER: ${WP_DB_USER:-wpuser}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wp_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: wp_catalog_pma
+    restart: unless-stopped
+    ports:
+      - "${PMA_PORT:-8081}:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - wp_network
+
+volumes:
+  wp_data:
+    driver: local
+  db_data:
+    driver: local
+
+networks:
+  wp_network:
+    driver: bridge
