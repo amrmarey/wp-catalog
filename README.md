@@ -38,6 +38,12 @@ docker --version
 docker compose version
 ```
 
+## 🔗 Repository
+
+**GitHub Repository**: [wp-catalog](https://github.com/yourusername/wp-catalog)
+
+> 📝 **Note**: Update the repository URL above with your actual GitHub repository URL.
+
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
@@ -46,6 +52,8 @@ docker compose version
 git clone https://github.com/yourusername/wp-catalog.git
 cd wp-catalog
 ```
+
+> 📝 **Note**: Replace `yourusername` with your GitHub username or use the repository URL from the section above.
 
 ### 2. Configure Environment Variables
 
@@ -314,11 +322,19 @@ docker compose exec -T db mysql -u wpuser -p wp_catalog < backup.sql
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+For questions or suggestions, contact the maintainer:
+
+- **Email**: [amr.marey@msn.com](mailto:amr.marey@msn.com)
+
+### How to Contribute
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+We appreciate your contributions! 🎉
 
 ## 📄 License
 
