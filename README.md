@@ -97,6 +97,56 @@ Once the containers are running, access your WordPress installation:
 
 > 💡 **Note**: On first launch, WordPress will guide you through the installation wizard.
 
+## 🧭 After Logging in to the WordPress Dashboard
+
+Once you've completed the WordPress installation and logged into the admin dashboard, follow these steps to set up your product catalog:
+
+### 1️⃣ Install the following plugins:
+
+1. **WooCommerce**
+   - Navigate to: Plugins → Add New
+   - Search for "WooCommerce" and install the official WooCommerce plugin
+   - Activate the plugin and follow the setup wizard
+
+2. **YITH WooCommerce Catalog Mode**
+   - Navigate to: Plugins → Add New
+   - Search for "YITH WooCommerce Catalog Mode" and install
+   - Activate the plugin
+
+3. **Astra Theme**
+   - Navigate to: Appearance → Themes → Add New
+   - Search for "Astra" and install the theme
+   - Activate the theme
+
+4. **Advanced Custom Fields (ACF)**
+   - Navigate to: Plugins → Add New
+   - Search for "Advanced Custom Fields" and install
+   - Activate the plugin
+
+### 2️⃣ Configure the Product Catalog:
+
+Go to: **Dashboard → WooCommerce → Settings → Catalog Mode**
+
+Then:
+
+- ✅ Enable "Hide Add to Cart"
+- ✅ Disable all purchase and checkout options
+- ✅ Optionally, add a "Request a Quote" or "Contact Us" button for inquiries
+
+### 3️⃣ Customize the Product Page:
+
+Go to: **ACF → Add Field Group**
+
+Then add custom fields such as:
+
+- **Brand** (Text)
+- **Model** (Text)
+- **Power** (Number)
+- **Dimensions** (Text)
+- **Datasheet** (File Upload)
+
+> 💡 **Tip**: These custom fields will allow you to add detailed product specifications that are specific to your catalog needs.
+
 ## 📁 Project Structure
 
 ```
