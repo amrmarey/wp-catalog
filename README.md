@@ -1,4 +1,4 @@
-# 📦 WordPress Catalog
+# 📦 WordPress Product Catalog
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=flat-square&logo=docker)](https://www.docker.com/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.4-blue?style=flat-square&logo=wordpress)](https://wordpress.org/)
