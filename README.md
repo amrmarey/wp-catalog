@@ -49,11 +49,10 @@ docker compose version
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/wp-catalog.git
+git clone https://github.com/amrmarey/wp-catalog.git
 cd wp-catalog
 ```
 
-> 📝 **Note**: Replace `yourusername` with your GitHub username or use the repository URL from the section above.
 
 ### 2. Configure Environment Variables
 
