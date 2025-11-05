@@ -1,4 +1,4 @@
-# 📦 WordPress Catalog
+# 📦 WordPress Product Catalog
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=flat-square&logo=docker)](https://www.docker.com/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.8-blue?style=flat-square&logo=wordpress)](https://wordpress.org/)
@@ -48,11 +48,10 @@ docker compose version
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/wp-catalog.git
+git clone https://github.com/amrmarey/wp-catalog.git
 cd wp-catalog
 ```
 
-> 📝 **Note**: Replace `yourusername` with your GitHub username or use the repository URL from the section above.
 
 ### 2. Configure Environment Variables
 
