@@ -1,7 +1,7 @@
 # 📦 WordPress Catalog
 
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=flat-square&logo=docker)](https://www.docker.com/)
-[![WordPress](https://img.shields.io/badge/WordPress-6.4-blue?style=flat-square&logo=wordpress)](https://wordpress.org/)
+[![WordPress](https://img.shields.io/badge/WordPress-6.8-blue?style=flat-square&logo=wordpress)](https://wordpress.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-orange?style=flat-square&logo=mysql)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
@@ -19,7 +19,7 @@ A containerized WordPress catalog application with MySQL database and phpMyAdmin
 
 ## 🛠️ Tech Stack
 
-- **WordPress** 6.4 - Content Management System
+- **WordPress** 6.8 - Content Management System
 - **MySQL** 8.0 - Database Server
 - **phpMyAdmin** - Web-based database administration
 - **Docker** & **Docker Compose** - Containerization
@@ -199,7 +199,7 @@ The following diagram illustrates the network architecture and port configuratio
 ## 🐳 Docker Services
 
 ### WordPress Service
-- **Image**: `wordpress:6.4-apache`
+- **Image**: `wordpress:6.8-apache`
 - **Container**: `wp_catalog`
 - **Port**: `8080:80`
 - **Volume**: `wp_data:/var/www/html`
