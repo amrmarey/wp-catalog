@@ -63,7 +63,7 @@ services:
   #     PMA_USER: ${WP_DB_USER}
   #     PMA_PASSWORD: ${WP_DB_PASSWORD}
   #   ports:
-  #     - "${PMA_PORT}:80"
+  #     - "${PMA_PORT}:8081"
   #   depends_on:
   #     db:
   #       condition: service_healthy

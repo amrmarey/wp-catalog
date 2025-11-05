@@ -14,14 +14,13 @@ A containerized WordPress catalog application with MySQL database and phpMyAdmin
 - 🏥 **Health checks** for reliable service startup
 - 🌐 **Isolated networking** for enhanced security
 - 💾 **Persistent data storage** with named volumes
-- 🗄️ **phpMyAdmin** for easy database management
+- �️ **Enhanced Security** with WP 2FA and Really Simple Security
 - 🔄 **Auto-restart** policies for high availability
 
 ## 🛠️ Tech Stack
 
 - **WordPress** 6.8 - Content Management System
 - **MySQL** 8.0 - Database Server
-- **phpMyAdmin** - Web-based database administration
 - **Docker** & **Docker Compose** - Containerization
 
 ## 📋 Prerequisites
@@ -66,12 +65,23 @@ cp .env.example .env
 Edit `.env` and set your secure passwords:
 
 ```env
+WP_DB_NAME=wp_catalog
 WP_DB_USER=wpuser
 WP_DB_PASSWORD=your_strong_password_here
-WP_DB_NAME=wp_catalog
+WP_80=80
+WP_443=443
+DOMAIN_NAME=your.domain.com
+
+# MySQL Configuration
 MYSQL_ROOT_PASSWORD=your_strong_root_password
-WP_PORT=8080
-PMA_PORT=8081
+MYSQL_DATABASE=${WP_DB_NAME}
+MYSQL_USER=${WP_DB_USER}
+MYSQL_PASSWORD=${WP_DB_PASSWORD}
+
+# Backup Configuration (optional)
+BACKUP_PATH=./backups
+BACKUP_RETENTION_DAYS=7
+BACKUP_TIMEZONE=your_timezone
 ```
 
 > ⚠️ **Important**: Never commit the `.env` file to version control. It contains sensitive credentials.
@@ -90,12 +100,16 @@ This will:
 
 ### 4. Access Your WordPress Site
 
-Once the containers are running, access your WordPress installation:
+Once the containers are running and your domain is configured, access your WordPress installation:
 
-- **WordPress**: http://localhost:8080
-- **phpMyAdmin**: http://localhost:8081
+- **HTTP**: `http://${DOMAIN_NAME}:${WP_80}`
+- **HTTPS**: `https://${DOMAIN_NAME}:${WP_443}`
 
 > 💡 **Note**: On first launch, WordPress will guide you through the installation wizard.
+> 
+> ⚠️ **Important**: Make sure your domain DNS is properly configured to point to your server's IP address.
+>
+> 🔒 **SSL Note**: If using the default ports (80/443), you can omit the port numbers from the URLs.
 
 ## 🧭 After Logging in to the WordPress Dashboard
 
@@ -122,6 +136,24 @@ Once you've completed the WordPress installation and logged into the admin dashb
    - Navigate to: Plugins → Add New
    - Search for "Advanced Custom Fields" and install
    - Activate the plugin
+
+5. **WP 2FA**
+   - Navigate to: Plugins → Add New
+   - Search for "WP 2FA" and install the official plugin
+   - Activate the plugin
+   - Go to Settings → WP 2FA
+   - Follow the setup wizard to configure 2FA for admin accounts
+   - Enforce 2FA for all administrator accounts
+   - Configure backup codes and recovery methods
+
+6. **Really Simple SSL**
+   - Navigate to: Plugins → Add New
+   - Search for "Really Simple SSL" and install
+   - Activate the plugin
+   - Go to Settings → SSL
+   - Follow the security recommendations
+   - Enable HSTS if your site uses HTTPS
+   - Configure mixed content fixer if needed
 
 ### 2️⃣ Configure the Product Catalog:
 
@@ -165,10 +197,20 @@ wp-catalog/
 
 Default ports are configured in `.env`:
 
-- **WordPress**: `8080` (mapped to container port 80)
-- **phpMyAdmin**: `8081` (mapped to container port 80)
+- **HTTP Port**: `80` (configured via `WP_80`)
+- **HTTPS Port**: `443` (configured via `WP_443`)
+- **Domain Name**: Configure your domain via `DOMAIN_NAME` (e.g., www.example.com)
 
-To change ports, update the `WP_PORT` and `PMA_PORT` variables in your `.env` file.
+The WordPress container exposes:
+- Port 80 for HTTP traffic
+- Port 443 for HTTPS traffic
+- Both ports are configurable through the `.env` file
+
+MySQL runs on port 3306 internally and is not exposed outside the Docker network for security.
+
+> 🔒 **Security Note**: The application uses Docker networks for isolation:
+> - `frontend`: For web access
+> - `internal`: For database connections (not exposed externally)
 
 ### Database Configuration
 
@@ -178,6 +220,57 @@ Database settings can be customized in `.env`:
 - `WP_DB_PASSWORD`: WordPress database password
 - `WP_DB_NAME`: Database name
 - `MYSQL_ROOT_PASSWORD`: MySQL root password
+- `MYSQL_DATABASE`: Same as `WP_DB_NAME`
+- `MYSQL_USER`: Same as `WP_DB_USER`
+- `MYSQL_PASSWORD`: Same as `WP_DB_PASSWORD`
+
+### Backup Configuration
+
+Backup settings can be configured in `.env`:
+
+- `BACKUP_PATH`: Local path for backups (default: `./backups`)
+- `BACKUP_RETENTION_DAYS`: Number of days to keep backups (default: 7)
+- `BACKUP_TIMEZONE`: Timezone for backup operations (e.g., `Africa/Cairo`)
+
+### Using the Backup Script
+
+The project includes an automated backup script `backup.sh` that creates a complete backup of both your database and WordPress files. To use it:
+
+1. Make the script executable:
+   ```bash
+   chmod +x backup.sh
+   ```
+
+2. Run the backup:
+   ```bash
+   ./backup.sh
+   ```
+
+The script will:
+- Create a `backups` directory if it doesn't exist
+- Dump the MySQL database with timestamp (e.g., `db_2025-11-06-1430.sql`)
+- Export WordPress files with timestamp (e.g., `wp_2025-11-06-1430`)
+- Use environment variables from your `.env` file automatically
+
+> 💡 **Tip**: Set up a cron job to run backups automatically:
+> ```bash
+> # Run backup daily at 2 AM
+> 0 2 * * * cd /path/to/wp-catalog && ./backup.sh
+> ```
+
+> ⚠️ **Note**: Make sure to regularly transfer backups to a secure off-site location.
+
+### Optional OCI Configuration
+
+For Oracle Cloud Infrastructure backup integration, you can configure:
+
+- `OCI_TENANCY_ID`: Your OCI tenancy OCID
+- `OCI_USER_ID`: Your OCI user OCID
+- `OCI_FINGERPRINT`: API key fingerprint
+- `OCI_KEY_FILE`: Path to your API private key
+- `OCI_REGION`: OCI region (e.g., `me-jeddah-1`)
+- `OCI_BUCKET_NAME`: OCI bucket for backups
+- `OCI_NAMESPACE`: Your OCI namespace
 
 ### Volumes
 
@@ -187,9 +280,10 @@ The following named volumes are created for data persistence:
 - `db_data`: MySQL database files
 
 ## 🏗️ Architecture
+
 The following diagram illustrates the network architecture and port configuration:
 
-![Architecture Diagram](image.png)
+![Architecture Diagram](diagram.png)
 
 
 ```
@@ -199,24 +293,26 @@ The following diagram illustrates the network architecture and port configuratio
 ## 🐳 Docker Services
 
 ### WordPress Service
-- **Image**: `wordpress:6.8-apache`
+- **Image**: `wordpress:latest`
 - **Container**: `wp_catalog`
-- **Port**: `8080:80`
-- **Volume**: `wp_data:/var/www/html`
-- **Health Check**: Checks WordPress installation status
+- **Ports**: 
+  - HTTP: `${WP_80}:80` (default: 80)
+  - HTTPS: `${WP_443}:443` (default: 443)
+- **Volumes**: `wp_data:/var/www/html`
+- **Networks**: internal, frontend
+- **Health Check**: HTTP request test every 1 minute
+- **Dependencies**: Requires healthy MySQL service
 
 ### MySQL Service
 - **Image**: `mysql:8.0`
 - **Container**: `wp_catalog_db`
 - **Port**: Internal only (3306)
-- **Volume**: `db_data:/var/lib/mysql`
-- **Health Check**: MySQL ping test
+- **Volumes**: `db_data:/var/lib/mysql`
+- **Networks**: internal only
+- **Health Check**: MySQL ping test every 30 seconds
+- **Environment**: Auto-configured from `.env` variables
 
-### phpMyAdmin Service
-- **Image**: `phpmyadmin/phpmyadmin:latest`
-- **Container**: `wp_catalog_pma`
-- **Port**: `8081:80`
-- **Health Check**: Depends on MySQL being healthy
+
 
 ## 📝 Common Commands
 
@@ -348,23 +444,35 @@ docker compose up -d
 
 ## 💾 Backup & Restore
 
-### Backup Database
+### Automatic Backup (Recommended)
 
+Use the included backup script for automated backups:
 ```bash
-docker compose exec db mysqldump -u wpuser -p wp_catalog > backup.sql
+./backup.sh
 ```
 
-### Backup WordPress Files
+See [Using the Backup Script](#using-the-backup-script) section for detailed instructions.
 
+### Manual Backup Commands
+
+If you need to perform manual backups:
+
+#### Backup Database
 ```bash
-docker compose cp wp_catalog:/var/www/html ./wp_backup
+docker compose exec db mysqldump -u "$WP_DB_USER" -p"$WP_DB_PASSWORD" "$WP_DB_NAME" > "./backups/manual_db_$(date +%F-%H%M).sql"
+```
+
+#### Backup WordPress Files
+```bash
+docker compose cp wordpress:/var/www/html "./backups/manual_wp_$(date +%F-%H%M)"
 ```
 
 ### Restore Database
-
 ```bash
-docker compose exec -T db mysql -u wpuser -p wp_catalog < backup.sql
+docker compose exec -T db mysql -u "$WP_DB_USER" -p"$WP_DB_PASSWORD" "$WP_DB_NAME" < "backup_file.sql"
 ```
+
+> 💡 **Tip**: The automatic backup script is the recommended method as it handles both database and files in one step.
 
 ## 🤝 Contributing
 
@@ -392,8 +500,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [WordPress](https://wordpress.org/) - Open source CMS
 - [MySQL](https://www.mysql.com/) - Database server
-- [phpMyAdmin](https://www.phpmyadmin.net/) - Database management tool
 - [Docker](https://www.docker.com/) - Containerization platform
+- [WP 2FA](https://www.wpwhitesecurity.com/wordpress-plugins/wp-2fa/) - Two-factor authentication
+- [Really Simple SSL](https://really-simple-ssl.com/) - SSL/TLS security
 
 ---
 
