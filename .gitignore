@@ -4,6 +4,7 @@
 # Docker volumes
 wp_data/
 db_data/
+./backups/
 
 # IDE
 .vscode/
