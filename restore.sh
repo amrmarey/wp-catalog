@@ -61,7 +61,13 @@ while [ "$#" -gt 0 ]; do
     --wp-volume)
       shift; WP_VOLUME_FILE="$1"; shift; ;;
     --all)
-      shift; TS="$1"; DB_FILE="$BACKUP_PATH/db_${TS}.sql.gz"; WP_FILE="$BACKUP_PATH/wp_${TS}.tar.gz"; shift; ;;
+      shift; TS="$1";
+      DB_FILE="$BACKUP_PATH/db_${TS}.sql.gz";
+      # infer volume archives for DB and WP
+      DB_VOLUME_FILE="$BACKUP_PATH/${DB_VOLUME_NAME}_${TS}.tar.gz"
+      WP_VOLUME_FILE="$BACKUP_PATH/${WP_VOLUME_NAME}_${TS}.tar.gz"
+      # also collect any other volume archives matching the timestamp
+      shift; ;;
     --help)
       usage; exit 0; ;;
     *)
@@ -91,9 +97,9 @@ restore_db(){
   echo "🔁 Restoring database from '$file' into '$DB_NAME'..."
   # Stream into MySQL inside the db container
   if [[ "$file" =~ \.gz$ ]]; then
-    gunzip -c "$file" | docker compose exec -T "$COMPOSE_DB_SERVICE" sh -c "exec mysql -u\"$DB_USER\" -p\"$DB_PASSWORD\" \"$DB_NAME\""
+    gunzip -c "$file" | docker compose -f "$COMPOSE_FILE" exec -T "$COMPOSE_DB_SERVICE" sh -c "exec mysql -u\"$DB_USER\" -p\"$DB_PASSWORD\" \"$DB_NAME\""
   else
-    docker compose exec -T "$COMPOSE_DB_SERVICE" sh -c "exec mysql -u\"$DB_USER\" -p\"$DB_PASSWORD\" \"$DB_NAME\"" < "$file"
+    docker compose -f "$COMPOSE_FILE" exec -T "$COMPOSE_DB_SERVICE" sh -c "exec mysql -u\"$DB_USER\" -p\"$DB_PASSWORD\" \"$DB_NAME\"" < "$file"
   fi
   echo "✅ Database restored."
 }
@@ -113,13 +119,13 @@ restore_wp(){
   # Copy current files out of container
   TMP_PRE="$(mktemp -d)"
   trap 'rm -rf "$TMP_PRE"' RETURN
-  docker compose cp "$COMPOSE_WP_SERVICE":/var/www/html "$TMP_PRE/html"
+  docker compose -f "$COMPOSE_FILE" cp "$COMPOSE_WP_SERVICE":/var/www/html "$TMP_PRE/html"
   tar -C "$TMP_PRE" -czf "$PRE_SNAPSHOT" html
   rm -rf "$TMP_PRE"
 
   # Stop wordpress container to avoid conflicts
   echo " - Stopping $COMPOSE_WP_SERVICE container"
-  docker compose stop "$COMPOSE_WP_SERVICE" || true
+  docker compose -f "$COMPOSE_FILE" stop "$COMPOSE_WP_SERVICE" || true
 
   # Extract the provided archive into a temp dir
   TMP_DIR="$(mktemp -d)"
@@ -128,71 +134,65 @@ restore_wp(){
 
   # Remove current files inside container (careful)
   echo " - Removing current /var/www/html contents inside container"
-  docker compose exec "$COMPOSE_WP_SERVICE" sh -c "rm -rf /var/www/html/* || true"
+  docker compose -f "$COMPOSE_FILE" exec "$COMPOSE_WP_SERVICE" sh -c "rm -rf /var/www/html/* || true"
 
   # Copy restored files into container
   echo " - Copying files into wordpress container"
   # docker cp from host to container
-  docker compose cp "$TMP_DIR/html/." "$COMPOSE_WP_SERVICE":/var/www/html
+  docker compose -f "$COMPOSE_FILE" cp "$TMP_DIR/html/." "$COMPOSE_WP_SERVICE":/var/www/html
 
   # Start wordpress container
   echo " - Starting $COMPOSE_WP_SERVICE container"
-  docker compose start "$COMPOSE_WP_SERVICE"
+  docker compose -f "$COMPOSE_FILE" start "$COMPOSE_WP_SERVICE"
 
   echo "✅ WordPress files restored."
 }
 
-# Restore a WordPress archive into a Docker volume (safer for full-site restores)
-restore_wp_volume(){
+## Generic volume restore: infers volume name from archive filename
+restore_volume(){
   local file="$1"
   if [ ! -f "$file" ]; then
-    echo "WP volume archive not found: $file" >&2; exit 5
+    echo "Volume archive not found: $file" >&2; return 1
   fi
-  echo "🔁 Restoring WordPress volume from '$file' into volume '$WP_VOLUME_NAME'..."
-
   FILE_DIR="$(cd "$(dirname "$file")" && pwd)"
   FILE_BASE="$(basename "$file")"
 
-  echo " - Stopping $COMPOSE_WP_SERVICE to ensure consistency"
-  docker compose stop "$COMPOSE_WP_SERVICE" || true
+  # infer volume name by removing trailing _YYYY-MM-DD-HHMM.tar.gz
+  VNAME=$(echo "$FILE_BASE" | sed -E 's/_([0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4})\.tar\.gz$//')
+  if [ -z "$VNAME" ]; then
+    echo "Could not infer volume name from filename: $FILE_BASE" >&2; return 2
+  fi
+
+  echo "🔁 Restoring volume '$VNAME' from '$file'..."
+
+  # decide if we should stop a service for consistency
+  STOPPED_SERVICE=""
+  if [ "$VNAME" = "$WP_VOLUME_NAME" ]; then
+    STOPPED_SERVICE="$COMPOSE_WP_SERVICE"
+  elif [ "$VNAME" = "$DB_VOLUME_NAME" ]; then
+    STOPPED_SERVICE="$COMPOSE_DB_SERVICE"
+  fi
+
+  if [ -n "$STOPPED_SERVICE" ]; then
+  echo " - Stopping $STOPPED_SERVICE to ensure consistency"
+  docker compose -f "$COMPOSE_FILE" stop "$STOPPED_SERVICE" || true
+  fi
 
   echo " - Extracting archive into volume using transient container"
-  docker run --rm \
-    -v "${WP_VOLUME_NAME}:/volume" \
-    -v "${FILE_DIR}:/backup" \
-    alpine:3.18 sh -c "cd /volume && tar xzf /backup/${FILE_BASE}"
+  docker run --rm -v "${VNAME}:/volume" -v "${FILE_DIR}:/backup" alpine:3.18 sh -c "cd /volume && tar xzf /backup/${FILE_BASE}"
 
-  echo " - Starting $COMPOSE_WP_SERVICE"
-  docker compose start "$COMPOSE_WP_SERVICE"
-
-  echo "✅ WordPress volume restored."
-}
-
-# Restore raw DB volume archive into DB volume (DANGEROUS: stop DB first)
-restore_db_volume(){
-  local file="$1"
-  if [ ! -f "$file" ]; then
-    echo "DB volume archive not found: $file" >&2; exit 6
+  if [ -n "$STOPPED_SERVICE" ]; then
+  echo " - Starting $STOPPED_SERVICE"
+  docker compose -f "$COMPOSE_FILE" start "$STOPPED_SERVICE"
   fi
-  echo "🔁 Restoring DB volume from '$file' into volume '$DB_VOLUME_NAME'..."
 
-  FILE_DIR="$(cd "$(dirname "$file")" && pwd)"
-  FILE_BASE="$(basename "$file")"
-
-  echo " - Stopping $COMPOSE_DB_SERVICE to ensure filesystem consistency"
-  docker compose stop "$COMPOSE_DB_SERVICE" || true
-
-  echo " - Extracting archive into DB volume using transient container"
-  docker run --rm \
-    -v "${DB_VOLUME_NAME}:/volume" \
-    -v "${FILE_DIR}:/backup" \
-    alpine:3.18 sh -c "cd /volume && tar xzf /backup/${FILE_BASE}"
-
-  echo " - Starting $COMPOSE_DB_SERVICE"
-  docker compose start "$COMPOSE_DB_SERVICE"
-
-  echo "✅ DB volume restored."
+  echo "✅ Volume $VNAME restored."
+  return 0
 }
+
+# Backwards-compatible wrappers
+restore_wp_volume(){ restore_volume "$1"; }
+restore_db_volume(){ restore_volume "$1"; }
 
 # Run requested restores
 if [ -n "$DB_FILE" ]; then
@@ -208,6 +208,21 @@ if [ -n "$WP_VOLUME_FILE" ]; then
 fi
 if [ -n "$DB_VOLUME_FILE" ]; then
   restore_db_volume "$DB_VOLUME_FILE"
+fi
+
+# If --all was used with a timestamp, also restore any other volume archives that match _<TS>.tar.gz
+if [ -n "${TS:-}" ]; then
+  echo "Looking for other volume archives matching timestamp $TS in $BACKUP_PATH..."
+  while IFS= read -r volfile; do
+    [ -z "$volfile" ] && continue
+    # skip files already handled
+    case "$volfile" in
+      *"/${DB_VOLUME_NAME}_$TS.tar.gz"|*"/${WP_VOLUME_NAME}_$TS.tar.gz")
+        continue;;
+    esac
+    echo " - Found volume archive: $volfile"
+    restore_volume "$volfile" || echo "   Warning: failed to restore $volfile"
+  done < <(find "$BACKUP_PATH" -maxdepth 1 -type f -name "*_${TS}.tar.gz" -print 2>/dev/null || true)
 fi
 
 if [ -z "$DB_FILE" ] && [ -z "$DB_VOLUME_FILE" ] && [ -z "$WP_FILE" ] && [ -z "$WP_VOLUME_FILE" ]; then
